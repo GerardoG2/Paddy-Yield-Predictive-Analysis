@@ -1,0 +1,38 @@
+---
+title: "DataCleaning"
+author: "Gerardo Gutierrez"
+date: "2025-11-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load necessary libraries
+library(dplyr) # data wrangling
+library(tidyr) # data tidying and reshaping
+library(ggplot2) # pretty plots
+library(readr)
+# Load the dataset
+data <- read_csv("../data/raw_data.csv")
+```
+
+```{r}
+# Inspect the dataset
+View(data)
+head(data)
+
+
+```
+
+```{r}
+summary(data)
+```
+
+```{r}
+str(data)
+
+```
+
