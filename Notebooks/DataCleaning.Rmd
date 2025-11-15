@@ -36,3 +36,35 @@ str(data)
 
 ```
 
+```{r}
+# Check for missing values
+colSums(is.na(data))
+
+```
+
+```{r}
+# get unique values for categorical variables
+sapply(data, function(x) if(is.factor(x) || is.character(x)) unique(x))
+
+```
+```{r}
+# list column names 
+colnames(data)
+```
+
+```{r}
+# build regresssion model with all variables  with paddy yield as target
+paddy_yield <- data$'Paddy yield(in Kg)'
+model <- lm(`Paddy yield(in Kg)` ~ . , data = data)
+summary(model)
+
+```
+```{r}
+paddy_yield
+```
+
+```{r}
+# check data types
+sapply(data, class)
+```
+
