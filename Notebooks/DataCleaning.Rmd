@@ -14,11 +14,11 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr) # data wrangling
 library(tidyr) # data tidying and reshaping
 library(ggplot2) # pretty plots
-library(readr)
+library(readr) 
 # Load the dataset
 data <- read_csv("../data/raw_data.csv")
 ```
-
+# Exploratory Data Analysis
 ```{r}
 # Inspect the dataset
 View(data)
@@ -39,32 +39,187 @@ str(data)
 ```{r}
 # Check for missing values
 colSums(is.na(data))
-
 ```
 
 ```{r}
-# get unique values for categorical variables
-sapply(data, function(x) if(is.factor(x) || is.character(x)) unique(x))
-
-```
-```{r}
-# list column names 
 colnames(data)
 ```
 
 ```{r}
-# build regresssion model with all variables  with paddy yield as target
-paddy_yield <- data$'Paddy yield(in Kg)'
-model <- lm(`Paddy yield(in Kg)` ~ . , data = data)
-summary(model)
+# plot correlation heatmap of numeric values
+
+numeric_data <- data %>%
+  select(where(is.numeric))
+
+library(ggcorrplot)
+cor_matrix <- round(cor(numeric_data, use = "complete.obs"), 2)
+ggcorrplot(cor_matrix, lab = TRUE)
+```
+
+```{r}
+# check unique values for all perfectly correlated variables
+correlated_var <- c("Hectares", 'Seedrate(in Kg)', "LP_Mainfield(in Tonnes)", "Nursery area (Cents)", "LP_nurseryarea(in Tonnes)", "DAP_20days", "Urea_40Days", "Potassh_50Days", "Micronutrients_70Days", "Pest_60Day(in ml)", "Trash(in bundles)", "Weed28D_thiobencarb")
+
+for (var in correlated_var) {
+  cat("Unique values for", var, ":\n")
+  print(unique(data[[var]]))
+  cat("\n")
+}
+```
+
+
+```{r}
+# drop perfectlycorrelated variables except seedrate
+
+# correlated vars = hectares,  seedrate (keep) lp mainfield, nursery area, lp nursery area in tonnes, dap20days, urea40days, potassh50days, micronutrients 70 days, pest 60days, trash, weed28d thiobencarb
+drop_var <- c("Hectares", "LP_Mainfield(in Tonnes)", "Nursery area (Cents)", "LP_nurseryarea(in Tonnes)", "DAP_20days", "Urea_40Days", "Potassh_50Days", "Micronutrients_70Days", "Pest_60Day(in ml)", "Trash(in bundles)", "Weed28D_thiobencarb")
+
+numeric_data_2 <- numeric_data %>%
+  select(-all_of(drop_var))
+
+# plot second heat map without correlated variables
+cor_matrix_2 <- round(cor(numeric_data_2, use = "complete.obs"), 2)
+ggcorrplot(cor_matrix_2, lab = TRUE)
+```
+
+```{r}
+# convert categorical variables to factors
+data <- data %>%
+  mutate(across(where(~ is.character(.) || is.logical(.)), as.factor))
+```
+
+```{r}
+# print categorical columns
+categorical_cols <- data %>%
+  select(where(is.factor)) %>%
+  colnames()
+print(categorical_cols)
+```
+
+```{r}
+# print numeric data 2 columns
+colnames(numeric_data_2)
+```
+
+```{r}
+# concatenate numeric_data_2 with categorical data
+categorical_data <- data %>%
+  select(where(is.factor))
+data_drop_cor<- cbind(numeric_data_2, categorical_data)
+data_drop_cor
 
 ```
+
+## Model 1
 ```{r}
-paddy_yield
+# build model with data drop corr
+model_1 <- lm(`Paddy yield(in Kg)` ~ ., data = data_drop_cor)
+summary(model_1)
+plot(model_1)
 ```
+output from model 1 
+
+
+Call:
+lm(formula = `Paddy yield(in Kg)` ~ ., data = data_drop_cor)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-4573.1  -466.2   103.9   649.1  1843.5 
+
+Coefficients: (42 not defined because of singularities)
+                                       Estimate Std. Error t value Pr(>|t|)    
+(Intercept)                          -5960.0277 17184.7632  -0.347   0.7288    
+`Seedrate(in Kg)`                      254.5612     0.4979 511.285   <2e-16 ***
+`30DRain( in mm)`                      -87.8316   199.2548  -0.441   0.6594    
+`30DAI(in mm)`                               NA         NA      NA       NA    
+`30_50DRain( in mm)`                    35.0988   107.4816   0.327   0.7440    
+`30_50DAI(in mm)`                            NA         NA      NA       NA    
+`51_70DRain(in mm)`                          NA         NA      NA       NA    
+`51_70AI(in mm)`                             NA         NA      NA       NA    
+`71_105DRain(in mm)`                         NA         NA      NA       NA    
+`71_105DAI(in mm)`                           NA         NA      NA       NA    
+`Min temp_D1_D30`                      -33.6974    55.7843  -0.604   0.5458    
+`Max temp_D1_D30`                      -14.5666    41.9808  -0.347   0.7286    
+`Min temp_D31_D60`                      62.0278    40.4484   1.534   0.1253    
+`Max temp_D31_D60`                           NA         NA      NA       NA    
+`Min temp_D61_D90`                           NA         NA      NA       NA    
+`Max temp_D61_D90`                           NA         NA      NA       NA    
+`Min temp_D91_D120`                          NA         NA      NA       NA    
+`Max temp_D91_D120`                          NA         NA      NA       NA    
+`Inst Wind Speed_D1_D30(in Knots)`           NA         NA      NA       NA    
+`Inst Wind Speed_D31_D60(in Knots)`          NA         NA      NA       NA    
+`Inst Wind Speed_D61_D90(in Knots)`          NA         NA      NA       NA    
+`Inst Wind Speed_D91_D120(in Knots)`         NA         NA      NA       NA    
+`Relative Humidity_D1_D30`                   NA         NA      NA       NA    
+`Relative Humidity_D31_D60`                  NA         NA      NA       NA    
+`Relative Humidity_D61_D90`                  NA         NA      NA       NA    
+`Relative Humidity_D91_D120`                 NA         NA      NA       NA    
+AgriblockCuddalore                           NA         NA      NA       NA    
+AgriblockKallakurichi                        NA         NA      NA       NA    
+AgriblockKurinjipadi                         NA         NA      NA       NA    
+AgriblockPanruti                             NA         NA      NA       NA    
+AgriblockSankarapuram                        NA         NA      NA       NA    
+Varietydelux ponni                     109.1218    45.9933   2.373   0.0177 *  
+Varietyponmani                        -147.4697    45.4718  -3.243   0.0012 ** 
+`Soil Types`clay                        11.8758    36.0021   0.330   0.7415    
+Nurserywet                              37.8201    36.0241   1.050   0.2939    
+`Wind Direction_D1_D30`ENE                   NA         NA      NA       NA    
+`Wind Direction_D1_D30`NW                    NA         NA      NA       NA    
+`Wind Direction_D1_D30`SSE                   NA         NA      NA       NA    
+`Wind Direction_D1_D30`SW                    NA         NA      NA       NA    
+`Wind Direction_D1_D30`W                     NA         NA      NA       NA    
+`Wind Direction_D31_D60`NE                   NA         NA      NA       NA    
+`Wind Direction_D31_D60`S                    NA         NA      NA       NA    
+`Wind Direction_D31_D60`W                    NA         NA      NA       NA    
+`Wind Direction_D31_D60`WNW                  NA         NA      NA       NA    
+`Wind Direction_D61_D90`NNE                  NA         NA      NA       NA    
+`Wind Direction_D61_D90`NNW                  NA         NA      NA       NA    
+`Wind Direction_D61_D90`SE                   NA         NA      NA       NA    
+`Wind Direction_D61_D90`SW                   NA         NA      NA       NA    
+`Wind Direction_D91_D120`NW                  NA         NA      NA       NA    
+`Wind Direction_D91_D120`S                   NA         NA      NA       NA    
+`Wind Direction_D91_D120`SSE                 NA         NA      NA       NA    
+`Wind Direction_D91_D120`W                   NA         NA      NA       NA    
+`Wind Direction_D91_D120`WSW                 NA         NA      NA       NA    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 944.6 on 2778 degrees of freedom
+Multiple R-squared:  0.9895,	Adjusted R-squared:  0.9895 
+F-statistic: 2.617e+04 on 10 and 2778 DF,  p-value: < 2.2e-16
 
 ```{r}
-# check data types
-sapply(data, class)
+# vif of model 1 
+library(car)
+vif(model_1)
 ```
+```{r}
+alias(model_1)
+```
+Independent Variables
+ `Seedrate(in Kg)` `30DRain( in mm)` `30_50DRain( in mm)` `Min temp_D1_D30` `Max temp_D1_D30` `Min temp_D31_D60` Varietydelux ponni Varietyponmani `Soil Types`clay Nurserywet
+ 
+ 
+
+## Model 2
+```{r}
+# model with only independent variables
+
+feature_set_2 <- c("Seedrate(in Kg)", "30DRain( in mm)", "30_50DRain( in mm)", "Min temp_D1_D30", "Max temp_D1_D30", "Min temp_D31_D60", "Variety", "Soil Types", "Nursery")
+data_2 <- data_drop_cor %>%
+  select(all_of(feature_set_2), `Paddy yield(in Kg)`)
+model_2 <- lm(`Paddy yield(in Kg)` ~ ., data = data_2)
+summary(model_2)
+plot(model_2)
+
+
+```
+
+
+
+
+
+
+
 
