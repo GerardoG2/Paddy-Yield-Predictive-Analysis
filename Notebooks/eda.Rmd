@@ -36,38 +36,15 @@ colnames(raw_df)
 [5] "Rainfall_mm"                      "Irrigation_Schedule"              "Yield_kg_per_hectare"            
 
 ```{r}
-# plot distribution of data using scatterplot matrix
-pairs(raw_df)
+# Check for missing values
+colSums(is.na(raw_df))
 ```
+
+
+
+
 ```{r}
-# plot yield vs fertilizer amount
-ggplot(raw_df, aes(x = Fertilizer_Amount_kg_per_hectare, y = Yield_kg_per_hectare)) +
-  geom_point(alpha = 0.5) +
-  labs(title = "Yield vs Fertilizer Amount",
-       x = "Fertilizer Amount (kg per hectare)",
-       y = "Yield (kg per hectare)") +
-  theme_minimal()
-```
-```{r}
-# plot yield vs sunny days
-ggplot(raw_df, aes(x = Sunny_Days, y = Yield_kg_per_hectare)) +
-  geom_point(alpha = 0.5) +
-  labs(title = "Yield vs Sunny Days",
-       x = "Sunny Days",
-       y = "Yield (kg per hectare)") +
-  theme_minimal()
-```
-```{r}
-# plot yield vs rainfall
-ggplot(raw_df, aes(x = Rainfall_mm, y = Yield_kg_per_hectare)) +
-  geom_point(alpha = 0.5) +
-  labs(title = "Yield vs Rainfall",
-       x = "Rainfall (mm)",
-       y = "Yield (kg per hectare)") +
-  theme_minimal()
-```
-```{r}
-# correlation heatmap for numeric vairbales with number annoted on plot
+# correlation heatmap for numeric var
 library(reshape2)
 numeric_df <- raw_df %>% select_if(is.numeric)
 cor_matrix <- cor(numeric_df)
@@ -82,26 +59,59 @@ ggplot(data = melted_cor_matrix, aes(x=Var1, y=Var2, fill=value)) +
                                    size = 12, hjust = 1)) +
   coord_fixed()
 ```
-## more exploratory data analysis
+No strong correlation among covariates.
 
-```{r}
-str(raw_df)
-```
 
 ```{r}
 # unique values of seed variety
 unique(raw_df$Seed_Variety)
+
+# hist of seed variety
+hist(raw_df$Seed_Variety)
 ```
 
-```{r}
-pairs(raw_df, pch = 16, col = rgb(0,0,0,0.1))
 
-```
 
 ```{r}
 # irrigation schedule unique values
 unique(raw_df$Irrigation_Schedule)
 ```
+
+```{r}
+# histogram of all variables 
+library(gridExtra)
+p1 <- ggplot(raw_df, aes(x=Fertilizer_Amount_kg_per_hectare)) +
+  geom_histogram(binwidth=10, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Fertilizer Amount", x="Fertilizer Amount (kg/ha)", y="Count") +
+  theme_minimal()
+p2 <- ggplot(raw_df, aes(x=Sunny_Days)) + 
+  geom_histogram(binwidth=1, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Sunny Days", x="Sunny Days", y="Count") +
+  theme_minimal()
+p3 <- ggplot(raw_df, aes(x=Rainfall_mm)) +
+  geom_histogram(binwidth=10, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Rainfall", x="Rainfall (mm)", y="Count") +
+  theme_minimal()
+p4 <- ggplot(raw_df, aes(x=Irrigation_Schedule)) +
+  geom_histogram(binwidth=1, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Irrigation Schedule", x="Irrigation Schedule", y="Count") +
+  theme_minimal()
+p5 <- ggplot(raw_df, aes(x=Seed_Variety)) +
+  geom_histogram(binwidth=1, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Seed Variety", x="Seed Variety", y="Count") +
+  theme_minimal()
+p6 <- ggplot(raw_df, aes(x=Soil_Quality)) +
+  geom_histogram(binwidth=1, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Soil Quality", x="Soil Quality", y="Count") +
+  theme_minimal()
+p7 <- ggplot(raw_df, aes(x=Yield_kg_per_hectare)) +
+  geom_histogram(binwidth=10, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Yield", x="Yield (kg/ha)", y="Count") +
+  theme_minimal()
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, ncol=3)
+
+```
+
 
 
 
@@ -127,7 +137,12 @@ library(lmtest)
 dwtest(model1)
 
 ```
-
+```{r}
+# verify there is no multicollinearity with VIF
+library(car)
+vif(model1)
+```
+VIF values are all close to 1, furhter suggesting no multicollinearity.
 
 
 
@@ -166,18 +181,124 @@ anova(model1, model4)
 $H_0:$ Sunny days does not significantly improve the model fit.
 We REJECT $H_0$ since p-value is less than 0.05, suggesting that sunny days is significant and should be kept in the model.
 
-## model 
-
+## model 5 - without fertilizer amount
 ```{r}
-
+# model without fertilizer amount
+model5 <- update(model1, . ~ . - Fertilizer_Amount_kg_per_hectare)
+summary(model5)
+plot(model5)
 ```
+```{r}
+# compare reduced model with full model using ANOVA to see if fertilizer amount is significant
+anova(model1, model5)
+```
+Ferlizer helpls variability significantly.
+R-squared dropped by about .1 when fertilizer amount was removed.
+
+Additionally, in the anova test we reject $H_0:$ fertilizer amount does not significantly improve the model. So we keep fertilizer in the model.
+
+## model 6 - without rainfall
+```{r}
+# model without rainfall
+model6 <- update(model1, . ~ . - Rainfall_mm)
+summary(model6)
+plot(model6)
+```
+```{r}
+# compare reduced model with full model using ANOVA to see if rainfall is significant
+anova(model1, model6)
+```
+We keep rainfall since it helps explain variabality and is significant in the anova F test.
+
 
 
 ```{r}
 # compare models using AIC
-AIC(model1, model2, model3, model4)
+AIC(model1, model2, model3, model4, model5, model6)
 
 ```
+In conclusion, we keep the full model (model 1) as it has the lowest AIC, highest adjusted R-squared, and all variables are significant based on anova tests.
+
+# Inference and Interpretations
+Construct confidence intervals for the coefficients of the final model (model 1).
+
+## check for outliers, influential, and leverage points
+
+
+```{r}
+# Leverage points
+n = nobs(model1)
+p = length(coef(model1))
+
+leverages <- hatvalues(model1)
+model1$fitted.values[leverages > (3 * p/n)]
+```
+
+```{r}
+# Outliers
+standardized_residuals <- rstandard(model1)
+studentized_residuals <- rstudent(model1)
+
+model1$fitted.values[abs(studentized_residuals) > 3]
+model1$fitted.values[abs(standardized_residuals) > 3]
+```
+```{r}
+# influential
+cook_distances <- cooks.distance(model1)
+model1$fitted.values[cook_distances > 1]
+```
+```{r}
+# dffits
+n = nobs(model1)
+p = length(coef(model1))
+
+dffits_values <- dffits(model1)
+model1$fitted.values[abs(dffits_values) > (2 * sqrt(p/n))]
+```
+```{r}
+# Dfbetas
+n = nobs(model1)
+p = length(coef(model1))
+
+dfbetas_values <- data.frame(dfbetas(model1))
+abs(dfbetas_values) > (2 / sqrt(n))
+```
+```{r}
+# Get rows with more than where there is at least 5 high dfbetas
+influential_rows <- which(rowSums(abs(dfbetas_values) > (2 / sqrt(n))) >= 1)
+influential_rows
+```
+```{r}
+# size of influential_rows
+length(influential_rows)
+
+# build model without influential observations
+df_no_influential <- raw_df[-influential_rows, ]
+model_no_influential <- lm(Yield_kg_per_hectare ~ ., data = df_no_influential)
+summary(model_no_influential)
+
+# compare coefficients
+model1$coefficients
+model_no_influential$coefficients
+```
+After removing regression coefficients are not being heavily influenced by the points with high dfbetas.
+
+```{r}
+# 
+confint(model1, level = 0.95)
+```
+
+```{r}
+
+```
+
+
+# Test Predictive Power
+```{r}
+# Load test dataset
+test_df <- read_csv("../data/agricultural_yield_test.csv")
+```
+
 
 ```{r}
 
