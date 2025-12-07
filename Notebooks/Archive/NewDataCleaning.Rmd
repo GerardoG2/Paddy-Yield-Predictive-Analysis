@@ -1,0 +1,215 @@
+---
+title: "NewDataCleaning"
+author: "Gerardo Gutierrez"
+date: "2025-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load necessary libraries
+library(dplyr) # data wrangling
+library(tidyr) # data tidying and reshaping
+library(ggplot2) # pretty plots
+library(readr) 
+# Load the dataset
+raw_df <- read_csv("../data/raw_data.csv")
+```
+```{r}
+raw_df
+```
+```{r}
+#structure of the dataset
+str(raw_df)
+```
+```{r}
+# columns
+colnames(raw_df)
+```
+ [1] "Hectares"                           "Agriblock"                          "Variety"                            "Soil Types"                        
+ [5] "Seedrate(in Kg)"                    "LP_Mainfield(in Tonnes)"            "Nursery"                            "Nursery area (Cents)"              
+ [9] "LP_nurseryarea(in Tonnes)"          "DAP_20days"                         "Weed28D_thiobencarb"                "Urea_40Days"                       
+[13] "Potassh_50Days"                     "Micronutrients_70Days"              "Pest_60Day(in ml)"                  "30DRain( in mm)"                   
+[17] "30DAI(in mm)"                       "30_50DRain( in mm)"                 "30_50DAI(in mm)"                    "51_70DRain(in mm)"                 
+[21] "51_70AI(in mm)"                     "71_105DRain(in mm)"                 "71_105DAI(in mm)"                   "Min temp_D1_D30"                   
+[25] "Max temp_D1_D30"                    "Min temp_D31_D60"                   "Max temp_D31_D60"                   "Min temp_D61_D90"                  
+[29] "Max temp_D61_D90"                   "Min temp_D91_D120"                  "Max temp_D91_D120"                  "Inst Wind Speed_D1_D30(in Knots)"  
+[33] "Inst Wind Speed_D31_D60(in Knots)"  "Inst Wind Speed_D61_D90(in Knots)"  "Inst Wind Speed_D91_D120(in Knots)" "Wind Direction_D1_D30"             
+[37] "Wind Direction_D31_D60"             "Wind Direction_D61_D90"             "Wind Direction_D91_D120"            "Relative Humidity_D1_D30"          
+[41] "Relative Humidity_D31_D60"          "Relative Humidity_D61_D90"          "Relative Humidity_D91_D120"         "Trash(in bundles)"                 
+[45] "Paddy yield(in Kg)"
+
+```{r}
+# unique values in hectares
+unique(raw_df$Hectares)
+```
+
+```{r}
+# count unique values in seedrate column 
+unique(raw_df$'Seedrate(in Kg)')
+```
+
+```{r}
+# check correlation of hecatres and seedrate
+cor(raw_df$Hectares, raw_df$`Seedrate(in Kg)`, use = "complete.obs")
+```
+```{r}
+# mainfield unique vlaues 
+unique(raw_df$'LP_Mainfield(in Tonnes)')
+```
+
+```{r}
+# agriblock unique values
+unique(raw_df$Agriblock)
+```
+```{r}
+# micronutrietn unique valus
+unique(raw_df$Micronutrients_70Days)
+```
+
+```{r}
+# print  irrigation uniquie values for every time interval 
+unique(raw_df$`30DAI(in mm)`)
+unique(raw_df$`30_50DAI(in mm)`)
+unique(raw_df$`51_70AI(in mm)`)
+unique(raw_df$`71_105DAI(in mm)`)
+
+```
+```{r}
+# check correlation between irrigation time intervals
+cor(raw_df$`30DAI(in mm)`, raw_df$`30_50DAI(in mm)`, use = "complete.obs")
+cor(raw_df$`30DAI(in mm)`, raw_df$`51_70AI(in mm)`, use = "complete.obs")
+cor(raw_df$`30DAI(in mm)`, raw_df$`71_105DAI(in mm)`, use = "complete.obs")
+cor(raw_df$`30_50DAI(in mm)`, raw_df$`51_70AI(in mm)`, use = "complete.obs")
+cor(raw_df$`30_50DAI(in mm)`, raw_df$`71_105DAI(in mm)`, use = "complete.obs")
+cor(raw_df$`51_70AI(in mm)`, raw_df$`71_105DAI(in mm)`, use = "complete.obs")
+
+```
+
+```{r}
+# unique values for each humidity 
+unique(raw_df$`Relative Humidity_D1_D30`)
+unique(raw_df$`Relative Humidity_D31_D60`)
+unique(raw_df$`Relative Humidity_D61_D90`)
+unique(raw_df$`Relative Humidity_D91_D120`)
+
+```
+```{r}
+# unique values for winds 
+unique(raw_df$`Inst Wind Speed_D1_D30(in Knots)`)
+unique(raw_df$`Inst Wind Speed_D31_D60(in Knots)`)
+unique(raw_df$`Inst Wind Speed_D61_D90(in Knots)`)
+unique(raw_df$`Inst Wind Speed_D91_D120(in Knots)`)
+
+```
+
+```{r}
+# unique values for trash
+unique(raw_df$`Trash(in bundles)`)
+```
+```{r}
+# unique values for paddy yield
+unique(raw_df$`Paddy yield(in Kg)`)
+
+# count unique values of paddy yield
+length(unique(raw_df$`Paddy yield(in Kg)`))
+```
+```{r}
+# check correlation between paddy yield and hectares
+cor(raw_df$Hectares, raw_df$`Paddy yield(in Kg)`, use = "complete.obs")
+cor(raw_df$`Seedrate(in Kg)`, raw_df$`Paddy yield(in Kg)`, use = "complete.obs")
+cor(raw_df$`LP_Mainfield(in Tonnes)`, raw_df$`Paddy yield(in Kg)`, use = "complete.obs")
+
+```
+
+# new data frame with simplified covariates and new target variable column
+```{r}
+# new dataframe with paddy yield per hectares variable 
+new_df <- raw_df %>%
+  mutate(Paddy_yield_per_hectare = `Paddy yield(in Kg)` / Hectares)
+
+
+# drop seedrate, LP_Mainfield, and Paddy yield columns, hectares, trash, and nursery area, wind speed and direction columns, humdity columns
+new_df <- new_df %>%
+  select(-`Seedrate(in Kg)`, -`LP_Mainfield(in Tonnes)`, -`Paddy yield(in Kg)`, -Hectares, -`Trash(in bundles)`, -`Nursery area (Cents)`,
+         -`Inst Wind Speed_D1_D30(in Knots)`, -`Inst Wind Speed_D31_D60(in Knots)`, -`Inst Wind Speed_D61_D90(in Knots)`, -`Inst Wind Speed_D91_D120(in Knots)`,
+         -`Wind Direction_D1_D30`, -`Wind Direction_D31_D60`, -`Wind Direction_D61_D90`, -`Wind Direction_D91_D120`,
+         -`Relative Humidity_D1_D30`, -`Relative Humidity_D31_D60`, -`Relative Humidity_D61_D90`, -`Relative Humidity_D91_D120`)
+
+# drop lp nursery column
+new_df <- new_df %>%
+  select(-`LP_nurseryarea(in Tonnes)`)
+
+# drop dap, weed, urea, potassh, pest columns adn rename micronutrients to total_fertilizer
+new_df <- new_df %>%
+  select(-DAP_20days, -Weed28D_thiobencarb, -Urea_40Days, -Potassh_50Days, -'Pest_60Day(in ml)') %>%
+  rename(total_fertilizer = Micronutrients_70Days)
+
+# sum rain columns to create total_rainfall column 
+new_df <- new_df %>%
+  mutate(Total_Rainfall = `30DRain( in mm)` + `30_50DRain( in mm)` + `51_70DRain(in mm)` + `71_105DRain(in mm)`) %>%
+  select(-`30DRain( in mm)`, -`30_50DRain( in mm)`, -`51_70DRain(in mm)`, -`71_105DRain(in mm)`)
+
+# sum irrigation columns to create total_irrigation column
+new_df <- new_df %>%
+  mutate(Total_Irrigation = `30DAI(in mm)` + `30_50DAI(in mm)` + `51_70AI(in mm)` + `71_105DAI(in mm)`) %>%
+  select(-`30DAI(in mm)`, -`30_50DAI(in mm)`, -`51_70AI(in mm)`, -`71_105DAI(in mm)`)
+
+# dorp temp columns
+new_df <- new_df %>%
+  select(-'Min temp_D1_D30', -'Max temp_D1_D30', -'Min temp_D31_D60', -'Max temp_D31_D60',
+         -'Min temp_D61_D90', -'Max temp_D61_D90', -'Min temp_D91_D120', -'Max temp_D91_D120')
+
+# rename all columns using lowercase snake case
+new_df <- new_df %>%
+  rename_with(~ gsub(" ", "_", .x)) %>%
+  rename_with(~ gsub("\\(in Kg\\)", "in_kg", .x)) %>%
+  rename_with(~ gsub("\\(in Tonnes\\)", "in_tonnes", .x)) %>%
+  rename_with(~ gsub("\\(in mm\\)", "in_mm", .x)) %>%
+  rename_with(~ gsub("\\(in Knots\\)", "in_knots", .x)) %>%
+  rename_with(~ gsub("\\(in ml\\)", "in_ml", .x)) %>%
+  rename_with(~ tolower(.x))
+# check new column names
+
+colnames(new_df)
+```
+
+```{r}
+new_df
+```
+
+```{r}
+# correlation heatmap for newdf numeric columns 
+
+library(reshape2)
+library(ggcorrplot)
+numeric_cols <- new_df %>%
+  select(where(is.numeric))
+cor_matrix <- cor(numeric_cols, use = "complete.obs")
+melted_cor_matrix <- melt(cor_matrix)
+ggcorrplot(cor_matrix, 
+           method = "circle", 
+           type = "lower", 
+           lab = TRUE, 
+           lab_size = 3, 
+           title = "Correlation Heatmap for New DataFrame",
+           ggtheme = theme_minimal())
+
+
+```
+```{r}
+# drop rain columns
+new_df <- new_df %>%
+  select(-total_rainfall)
+```
+
+```{r}
+# build model with paddy_yield_per_hectare as target variable
+model <- lm(paddy_yield_per_hectare ~ ., data = new_df)
+summary(model)
+plot(model)
+```
+

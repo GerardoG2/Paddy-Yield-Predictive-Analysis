@@ -35,6 +35,10 @@ summary(data)
 str(data)
 
 ```
+```{r}
+# feature engineering to minimize features 
+
+```
 
 ```{r}
 # Check for missing values
@@ -44,6 +48,8 @@ colSums(is.na(data))
 ```{r}
 colnames(data)
 ```
+
+
 
 ```{r}
 # plot correlation heatmap of numeric values
@@ -71,8 +77,8 @@ for (var in correlated_var) {
 ```{r}
 # drop perfectlycorrelated variables except seedrate
 
-# correlated vars = hectares,  seedrate (keep) lp mainfield, nursery area, lp nursery area in tonnes, dap20days, urea40days, potassh50days, micronutrients 70 days, pest 60days, trash, weed28d thiobencarb
-drop_var <- c("Hectares", "LP_Mainfield(in Tonnes)", "Nursery area (Cents)", "LP_nurseryarea(in Tonnes)", "DAP_20days", "Urea_40Days", "Potassh_50Days", "Micronutrients_70Days", "Pest_60Day(in ml)", "Trash(in bundles)", "Weed28D_thiobencarb")
+# correlated vars = hectares,  seedrate,  lp mainfield, nursery area, lp nursery area in tonnes, dap20days, urea40days, potassh50days, micronutrients 70 days, pest 60days, trash, weed28d thiobencarb
+drop_var <- c("Hectares", "LP_Mainfield(in Tonnes)", "Nursery area (Cents)", "LP_nurseryarea(in Tonnes)", "DAP_20days", "Urea_40Days", "Potassh_50Days", "Micronutrients_70Days", "Pest_60Day(in ml)", "Trash(in bundles)", "Weed28D_thiobencarb", "Seedrate(in Kg)")
 
 numeric_data_2 <- numeric_data %>%
   select(-all_of(drop_var))
@@ -107,6 +113,11 @@ categorical_data <- data %>%
   select(where(is.factor))
 data_drop_cor<- cbind(numeric_data_2, categorical_data)
 data_drop_cor
+
+```
+## Model 5
+
+```{r}
 
 ```
 
@@ -194,6 +205,9 @@ F-statistic: 2.617e+04 on 10 and 2778 DF,  p-value: < 2.2e-16
 library(car)
 vif(model_1)
 ```
+
+
+
 ```{r}
 alias(model_1)
 ```
@@ -201,6 +215,22 @@ Independent Variables
  `Seedrate(in Kg)` `30DRain( in mm)` `30_50DRain( in mm)` `Min temp_D1_D30` `Max temp_D1_D30` `Min temp_D31_D60` Varietydelux ponni Varietyponmani `Soil Types`clay Nurserywet
  
  
+## Model 1 Transformed
+```{r}
+# new columnn and dataframe with  sqrt transformation of paddy yield and drop paddy yield from dataframe
+data_sqrt1 <- data_drop_cor %>%
+  mutate(sqrt_paddy_yield = sqrt(`Paddy yield(in Kg)`))
+
+# drop paddy yield from new dataframe
+data_sqrt1 <- data_sqrt1 %>%
+  select(-`Paddy yield(in Kg)`)
+
+# model with sqrt transformed paddy yield
+model_sqrt1 <- lm(sqrt_paddy_yield ~ ., data = data_sqrt1)
+
+```
+
+
 
 ## Model 2
 ```{r}
@@ -216,10 +246,82 @@ plot(model_2)
 
 ```
 
+# model 2 with sqrt transformed paddy yield
+```{r}
+# independent variables and transformed paddy yield
+data_sqrt_2 <- data_2 %>%
+  mutate(sqrt_paddy_yield = sqrt(`Paddy yield(in Kg)`))
+
+# drop paddy yield
+data_sqrt_2 <- data_sqrt_2 %>%
+  select(-`Paddy yield(in Kg)`)
+
+# model 
+model_sqrt_2 <- lm(sqrt_paddy_yield ~ ., data = data_sqrt_2)
+
+summary(model_sqrt_2)
+plot(model_sqrt_2)
+```
+
+## model 3 
+```{r}
+# like model 2 but drop seedrate from independent variables in new dataframe
+feature_set_3 <- c("30DRain( in mm)", "30_50DRain( in mm)", "Min temp_D1_D30", "Max temp_D1_D30", "Min temp_D31_D60", "Variety", "Soil Types", "Nursery")
+data_3 <- data_drop_cor %>%
+  select(all_of(feature_set_3), `Paddy yield(in Kg)`)
+model_3 <- lm(`Paddy yield(in Kg)` ~ ., data = data_3)
+summary(model_3)
+plot(model_3)
+```
+
+## model 4 
+```{r}
+# keep all variables from drop_cor dataframe but drop seed rate
+feature_set_4 <- colnames(data_drop_cor)
+feature_set_4 <- feature_set_4[feature_set_4 != "Seedrate(in Kg)"]
+data_4 <- data_drop_cor %>%
+  select(all_of(feature_set_4))
+model_4 <- lm(`Paddy yield(in Kg)` ~ ., data = data_4)
+summary(model_4)
+plot(model_4)
+```
+```{r}
+library(car)
+crPlots(model_4)   
+```
+
+```{r}
+avPlots(model_4)
+```
+
+```{r}
+avPlots(model_2)
+
+```
+
+```{r}
+# build knn model with variabels used in model 2
+library(caret)
+set.seed(123)
+train_control <- trainControl(method = "cv", number = 5)
+knn_model <- train(`Paddy yield(in Kg)` ~ ., data = data_2, method = "knn", trControl = train_control, tuneLength = 10)
+print(knn_model)
+```
 
 
+```{r}
+
+```
 
 
+# decision tree for feature selection 
+```{r}
+library(rpart)
+library(rpart.plot)
+# build decision tree model
+dt_model <- rpart(`Paddy yield(in Kg)` ~ ., data = data, method = "anova")
+rpart.plot(dt_model)
 
 
+```
 

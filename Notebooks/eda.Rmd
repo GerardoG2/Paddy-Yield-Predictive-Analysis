@@ -1,0 +1,186 @@
+---
+title: "newdata"
+author: "Gerardo Gutierrez"
+date: "2025-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load and Inspect Data
+```{r}
+# Load necessary libraries
+library(dplyr) # data wrangling
+library(tidyr) # data tidying and reshaping
+library(ggplot2) # pretty plots
+library(readr) 
+# Load the dataset
+raw_df <- read_csv("../data/agricultural_yield_train.csv")
+```
+
+
+```{r}
+raw_df
+```
+
+```{r}
+str(raw_df)
+```
+
+```{r}
+colnames(raw_df)
+```
+[1] "Soil_Quality"                     "Seed_Variety"                     "Fertilizer_Amount_kg_per_hectare" "Sunny_Days"                      
+[5] "Rainfall_mm"                      "Irrigation_Schedule"              "Yield_kg_per_hectare"            
+
+```{r}
+# plot distribution of data using scatterplot matrix
+pairs(raw_df)
+```
+```{r}
+# plot yield vs fertilizer amount
+ggplot(raw_df, aes(x = Fertilizer_Amount_kg_per_hectare, y = Yield_kg_per_hectare)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Yield vs Fertilizer Amount",
+       x = "Fertilizer Amount (kg per hectare)",
+       y = "Yield (kg per hectare)") +
+  theme_minimal()
+```
+```{r}
+# plot yield vs sunny days
+ggplot(raw_df, aes(x = Sunny_Days, y = Yield_kg_per_hectare)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Yield vs Sunny Days",
+       x = "Sunny Days",
+       y = "Yield (kg per hectare)") +
+  theme_minimal()
+```
+```{r}
+# plot yield vs rainfall
+ggplot(raw_df, aes(x = Rainfall_mm, y = Yield_kg_per_hectare)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Yield vs Rainfall",
+       x = "Rainfall (mm)",
+       y = "Yield (kg per hectare)") +
+  theme_minimal()
+```
+```{r}
+# correlation heatmap for numeric vairbales with number annoted on plot
+library(reshape2)
+numeric_df <- raw_df %>% select_if(is.numeric)
+cor_matrix <- cor(numeric_df)
+melted_cor_matrix <- melt(cor_matrix)
+ggplot(data = melted_cor_matrix, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  geom_text(aes(label=round(value,2)), color="white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       limit = c(-1,1), name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1)) +
+  coord_fixed()
+```
+## more exploratory data analysis
+
+```{r}
+str(raw_df)
+```
+
+```{r}
+# unique values of seed variety
+unique(raw_df$Seed_Variety)
+```
+
+```{r}
+pairs(raw_df, pch = 16, col = rgb(0,0,0,0.1))
+
+```
+
+```{r}
+# irrigation schedule unique values
+unique(raw_df$Irrigation_Schedule)
+```
+
+
+
+
+
+# Model Selection
+
+## model 1 - full model 
+```{r}
+# model with yiled as target
+model1 <- lm(Yield_kg_per_hectare ~ Soil_Quality + Seed_Variety + Fertilizer_Amount_kg_per_hectare + Sunny_Days + Rainfall_mm + Irrigation_Schedule, data = base_df)
+summary(model1)
+plot(model1)
+```
+
+
+
+```{r}
+# suppress warnings
+options(warn=-1)
+# Durbin-Watson test for autocorrelation
+library(lmtest)
+dwtest(model1)
+
+```
+
+
+
+
+## model 2 - without irrigation schedule
+```{r}
+
+# model without irrigation schedule
+model2 <- update(model1, . ~ . - Irrigation_Schedule)
+summary(model2)
+plot(model2)
+```
+R- Squared severely dropped by about .3, - suggesting that we should keep irrigation schedule in the model.
+
+## model 3 - without seed variety
+```{r}
+# model without seed variety
+model3 <- update(model1, . ~ . - Seed_Variety)
+summary(model3)
+plot(model3)
+```
+Notice that the QQplot now shows severe violation of normality. Suggesting that seed variety is importatn for statistical tests. 
+Additionally, the R-squared also dropped by about .5, suggesting that seed variety is important for model fit.
+
+## model 4 - without sunny days
+```{r}
+# model without sunny days
+model4 <- update(model1, . ~ . - Sunny_Days)
+summary(model4)
+plot(model4)
+```
+R-squared only dropped by about .02 when sunny days was removed, suggesting that sunny days may not be very important for model fit but lets conduct anova test to confirm that sunny days is not significant. 
+```{r}
+# compare reduced model with full model using ANOVA to see if sunny days is significant
+anova(model1, model4)
+```
+$H_0:$ Sunny days does not significantly improve the model fit.
+We REJECT $H_0$ since p-value is less than 0.05, suggesting that sunny days is significant and should be kept in the model.
+
+## model 
+
+```{r}
+
+```
+
+
+```{r}
+# compare models using AIC
+AIC(model1, model2, model3, model4)
+
+```
+
+```{r}
+
+```
+
+

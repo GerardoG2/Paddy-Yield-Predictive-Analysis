@@ -1,0 +1,63 @@
+---
+title: "crop_yield"
+author: "Gerardo Gutierrez"
+date: "2025-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+# Load necessary libraries
+library(dplyr) # data wrangling
+library(tidyr) # data tidying and reshaping
+library(ggplot2) # pretty plots
+library(readr) 
+# Load the dataset
+raw_df <- read_csv("../data/insurance.csv")
+```
+
+```{r}
+raw_df
+```
+
+```{r}
+str(raw_df)
+```
+
+```{r}
+colnames(raw_df)
+```
+[1] "age"      "sex"      "bmi"      "children" "smoker"   "region"   "charges" 
+```{r}
+# unique values in smoker
+unique(raw_df$smoker)
+
+```
+```{r}
+# unique values in region column
+unique(raw_df$region)
+```
+
+
+```{r}
+# correlation heatmap
+cor_matrix <- cor(raw_df %>% select(where(is.numeric)), use = "complete.obs")
+library(reshape2)
+melted_cor <- melt(cor_matrix)
+ggplot(data = melted_cor, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Correlation") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1)) +
+  coord_fixed()
+```
+```{r}
+# linear regression model with charges as target
+
+```
+
