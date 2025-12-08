@@ -231,6 +231,21 @@ summary(model1)$coefficients
 - For each additional mm of rainfall, we can expect an average decrease in yield of about 0.51 kg/ha, holding all other variables constant.
 - For each addition in irrigation count, we can expect an average increase in yield of about 49.99 kg/ha, holding all other variables constant.
 
+## investigate relationship between rainfall and irrigation
+```{r}
+ggplot(raw_df, aes(x=Rainfall_mm, y=Irrigation_Schedule)) +
+  geom_point(color="blue", alpha=0.6) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Relationship between Rainfall and Irrigation Schedule", x="Rainfall (mm)", y="Irrigation Schedule") +
+  theme_minimal()
+```
+```{r}
+# investigate why excessive rainfall is negatively impacting yield
+cor(raw_df$Rainfall_mm, raw_df$Irrigation_Schedule)
+
+```
+
+
 ## check for outliers, influential, and leverage points
 
 
@@ -240,7 +255,23 @@ n = nobs(model1)
 p = length(coef(model1))
 
 leverages <- hatvalues(model1)
+
+# amount of high leverage points
+high_lev_points <- which(leverages > (3 * p/n))
+length(high_lev_points)
+# fitted values of high leverage points
 model1$fitted.values[leverages > (3 * p/n)]
+
+# fit model without high leverage points
+df_no_high_lev <- raw_df[-high_lev_points, ]
+model_no_high_lev <- lm(Yield_kg_per_hectare ~ ., data = df_no_high_lev)
+summary(model_no_high_lev)
+# compare coefficients
+model1$coefficients
+model_no_high_lev$coefficients
+# compare r-squared
+summary(model1)$r.squared
+summary(model_no_high_lev)$r.squared
 ```
 
 ```{r}
@@ -251,6 +282,27 @@ studentized_residuals <- rstudent(model1)
 model1$fitted.values[abs(studentized_residuals) > 3]
 model1$fitted.values[abs(standardized_residuals) > 3]
 ```
+```{r}
+# remove all outliers
+outlier_rows <- which(abs(standardized_residuals) > 3)
+outlier_rows
+
+# fit model without outliers
+df_no_outliers <- raw_df[-outlier_rows, ]
+model_no_outliers <- lm(Yield_kg_per_hectare ~ ., data = df_no_outliers)
+summary(model_no_outliers)
+
+# compare coefficients
+model1$coefficients
+model_no_outliers$coefficients
+
+# compare r -squared
+summary(model1)$r.squared
+summary(model_no_outliers)$r.squared
+
+
+```
+Model is robust to outliers - coefficients and R-squared do not change significantly after removing outliers.
 ```{r}
 # influential
 cook_distances <- cooks.distance(model1)
@@ -263,6 +315,14 @@ p = length(coef(model1))
 
 dffits_values <- dffits(model1)
 model1$fitted.values[abs(dffits_values) > (2 * sqrt(p/n))]
+
+# remove influential points based on dffits
+influential_dffits_rows <- which(abs(dffits_values) > (2 * sqrt(p/n)))
+influential_dffits_rows
+# fit model without influential dffits points
+df_no_influential_dffits <- raw_df[-influential_dffits_rows, ]
+model_no_influential_dffits <- lm(Yield_kg_per_hectare ~ ., data = df_no_influential_dffits)
+summary(model_no_influential_dffits)
 ```
 ```{r}
 # Dfbetas
@@ -272,25 +332,48 @@ p = length(coef(model1))
 dfbetas_values <- data.frame(dfbetas(model1))
 abs(dfbetas_values) > (2 / sqrt(n))
 ```
+
 ```{r}
-# Get rows with more than where there is at least 5 high dfbetas
-influential_rows <- which(rowSums(abs(dfbetas_values) > (2 / sqrt(n))) >= 1)
-influential_rows
-```
-```{r}
+# remove influential points where there is at least 1 dfbeta
+dfbeta_rows_1 <- which(rowSums(abs(dfbetas_values) > (2 / sqrt(n))) >= 1)
 # size of influential_rows
-length(influential_rows)
+length(dfbeta_rows_1)
 
 # build model without influential observations
-df_no_influential <- raw_df[-influential_rows, ]
-model_no_influential <- lm(Yield_kg_per_hectare ~ ., data = df_no_influential)
-summary(model_no_influential)
+df_no_dfbeta_1 <- raw_df[-dfbeta_rows_1, ]
+model_no_dfbeta_1 <- lm(Yield_kg_per_hectare ~ ., data = df_no_dfbeta_1)
+summary(model_no_dfbeta_1)
 
 # compare coefficients
 model1$coefficients
-model_no_influential$coefficients
+model_no_dfbeta_1$coefficients
+
+# compare r squared
+summary(model1)$r.squared
+summary(model_no_dfbeta_1)$r.squared
 ```
-After removing regression coefficients are not being heavily influenced by the points with high dfbetas.
+
+```{r}
+# remove influential points where there are at least 4 dfbetas
+dfbeta_rows_4 <- which(rowSums(abs(dfbetas_values) > (2 / sqrt(n))) >= 4)
+# size of influential_rows
+length(dfbeta_rows_4)
+# build model without influential observations
+df_no_dfbeta_4 <- raw_df[-dfbeta_rows_4, ]
+model_no_dfbeta_4 <- lm(Yield_kg_per_hectare ~ ., data = df_no_dfbeta_4)
+summary(model_no_dfbeta_4)
+# compare coefficients
+model1$coefficients
+model_no_dfbeta_4$coefficients
+# compare r squared
+summary(model1)$r.squared
+summary(model_no_dfbeta_4)$r.squared
+
+```
+
+
+After removing high dfbeta observations, regression coefficients are not being heavily influenced by the points with high dfbetas.
+However, R-squared increased slightly after removing all high DFBETA points so they may be affecting model fit slightly.
 
 ```{r}
 # 
@@ -356,14 +439,57 @@ ggplot(pred_df, aes(x=Fitted, y=Actual)) +
 
 The prediction band shows that most of the true yields fall within the 95% prediction interval for new observations and that the model predicts new data well.
 
-```{r}
-# Load test dataset
-test_df <- read_csv("../data/agricultural_yield_test.csv")
-```
 
+#Prediction 
+We will test predictive power of model by splitting data into train test sets and using prediction metrics such as RMSE and MAE, MSPE.
 
 ```{r}
+# split data into train and test sets
+set.seed(123)
+train_indices <- sample(1:nrow(raw_df), size = 0.7 * nrow(raw_df))
+train_df <- raw_df[train_indices, ]
+test_df <- raw_df[-train_indices, ]
+# fit model on train data
+model_train <- lm(Yield_kg_per_hectare ~ ., data = train_df)
+# predict on test data
+predictions_test <- predict(model_train, newdata = test_df)
+# calculate RMSE, MAE, MSPE
+rmse <- sqrt(mean((test_df$Yield_kg_per_hectare - predictions_test)^2))
+mae <- mean(abs(test_df$Yield_kg_per_hectare - predictions_test))
+mspe <- mean((test_df$Yield_kg_per_hectare - predictions_test)^2)
+
+cat("RMSE:", rmse, "\n")
+cat("MAE:", mae, "\n")
+cat("MSPE:", mspe, "\n")
 
 ```
+```{r}
+# Plot distribution of yield data to compare with prediction errors
+ggplot(raw_df, aes(x=Yield_kg_per_hectare)) +
+  geom_histogram(binwidth=10, fill="blue", color="black", alpha=0.7) +
+  labs(title="Distribution of Yield Data", x="Yield (kg/ha)", y="Count") +
+  theme_minimal()
+```
+
+```{r}
+# visualize predicted vs actual
+library(ggplot2)
+ggplot(data = data.frame(Actual = test_df$Yield_kg_per_hectare, Predicted = predictions_test), aes(x=Actual, y=Predicted)) +
+  geom_point(color="blue", alpha=0.6) +
+  geom_abline(slope=1, intercept=0, color="red", linetype="dashed") +
+  labs(title="Actual vs Predicted Yields", x="Actual Yield", y="Predicted Yield") +
+  theme_minimal()
+```
+
+Confidence bands show how precise the estimates are. Where as the predictive power shows how well it generalizes to unseen data. 
+
+# Recommendations
+Based on the analysis, the following recommendations can be made to farmers aiming to maximize their agricultural yield:
+1. **Soil Quality Improvement:** Invest in soil enhancement techniques such as adding organic matter, proper pH balancing, and nutrient management to improve soil quality, as it has a positive impact on yield.
+2. **Seed Variety Selection:** Opt for high-yield seed varieties, as they significantly increase yield compared to low-yield varieties.
+3. **Fertilizer Application:** Apply an optimal amount of fertilizer (around 200 kg/ha) to boost yield, while avoiding over-application which may not lead to proportional yield increases.
+4. **Maximize Sunny Days Exposure:** Plan planting schedules to take advantage of periods with higher sunny days, as they contribute positively to yield.
+5. **Rainfall Management:** Implement effective water management strategies to mitigate the negative impact of excessive rainfall on yield, such as proper drainage systems. However, we should also consider that this factor may require further investigation as to why it negatively impacts yield. As consistent rainfall is generally beneficial for crops but maybe more spread out rainfall is better than heavy rainfall in short periods.
+6. **Irrigation Scheduling:** Maintain an effective irrigation schedule (around 8 times) to ensure crops receive adequate water, which positively influences yield.
 
 
