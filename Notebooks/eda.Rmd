@@ -458,9 +458,13 @@ rmse <- sqrt(mean((test_df$Yield_kg_per_hectare - predictions_test)^2))
 mae <- mean(abs(test_df$Yield_kg_per_hectare - predictions_test))
 mspe <- mean((test_df$Yield_kg_per_hectare - predictions_test)^2)
 
+# cacluate average percent error 
+ape <- mean(abs((test_df$Yield_kg_per_hectare - predictions_test) / test_df$Yield_kg_per_hectare)) * 100
+
 cat("RMSE:", rmse, "\n")
 cat("MAE:", mae, "\n")
 cat("MSPE:", mspe, "\n")
+cat("Average Percent Error:", ape, "%\n")
 
 ```
 ```{r}
@@ -475,7 +479,7 @@ ggplot(raw_df, aes(x=Yield_kg_per_hectare)) +
 # visualize predicted vs actual
 library(ggplot2)
 ggplot(data = data.frame(Actual = test_df$Yield_kg_per_hectare, Predicted = predictions_test), aes(x=Actual, y=Predicted)) +
-  geom_point(color="blue", alpha=0.6) +
+  geom_point(color="light blue", alpha=0.6) +
   geom_abline(slope=1, intercept=0, color="red", linetype="dashed") +
   labs(title="Actual vs Predicted Yields", x="Actual Yield", y="Predicted Yield") +
   theme_minimal()
